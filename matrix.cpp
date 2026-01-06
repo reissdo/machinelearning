@@ -200,8 +200,21 @@ void matrixSoftMax(Matrix *in, Matrix *out)
 void matrixCategoricalCrossEntropy(Matrix *in, Matrix *groundtruth, float *cost)
 {
     // groundtruth has to be one hot encoded
-    // samples are in cols
     assert((in->rows == groundtruth->rows) && (in->cols == groundtruth->cols));
+    *cost = 0.0f;
+
+    for (int j = 0; j < in->cols; j++)
+    {
+        float colCost = 0.0f;
+        for (int i = 0; i < in->rows; i++)
+        {
+            colCost += groundtruth->data[i][j] * std::log(in->data[i][j]);
+        }
+        colCost *= -1.0f;
+        *cost += colCost;
+    }
+
+    *cost /= static_cast<float>(in->cols);
 }
 
 void matrixCloneCols(Matrix *in, Matrix *out, int size)
@@ -328,5 +341,24 @@ void matrixOneHot(Matrix *in, Matrix *out, int numClasses)
     {
         int classIndex = in->data[0][i];
         out->data[classIndex][i] = 1.0f;
+    }
+}
+
+void matrixSigmoidDerivative(Matrix *in, Matrix *out)
+{
+    // sig´(x) = exp(-x) / (1 + exp(-x))^2
+    // sig´(x) = sig(x) * (1 - sig(x))
+    assert((in->rows == out->rows) && (in->cols == out->cols));
+
+    for (int i = 0; i < out->rows; i++)
+    {
+        for (int j = 0; j < out->cols; j++)
+        {
+            // float expIn = std::exp(-in->data[i][j]);
+            // out->data[i][j] = expIn / ((1 + expIn) * (1 + expIn));
+
+            float sig = 1.0f / (1.0f + std::exp(-in->data[i][j]));
+            out->data[i][j] = sig * (1.0f - sig);
+        }
     }
 }
