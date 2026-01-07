@@ -35,5 +35,7 @@ void matrixArgMax(Matrix *in, Matrix *argmax);
 Matrix *matrixLoad(const char *filename);
 void matrixOneHot(Matrix *in, Matrix *out, int numClasses);
 void matrixSigmoidDerivative(Matrix *in, Matrix *out);
+void matrixCCrossEntropyDerivative(Matrix *activation, Matrix *groundtruth, Matrix *gradient);
+void matrixSoftMaxDerivative(Matrix *wIn, Matrix* groundtruth, Matrix *gradient);
 
 #endif

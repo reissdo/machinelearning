@@ -344,21 +344,74 @@ void matrixOneHot(Matrix *in, Matrix *out, int numClasses)
     }
 }
 
-void matrixSigmoidDerivative(Matrix *in, Matrix *out)
+void matrixSigmoidDerivative(Matrix *wI, Matrix *gradient)
 {
     // sig´(x) = exp(-x) / (1 + exp(-x))^2
     // sig´(x) = sig(x) * (1 - sig(x))
-    assert((in->rows == out->rows) && (in->cols == out->cols));
+    assert((wI->rows == gradient->rows) && (wI->cols == gradient->cols));
 
-    for (int i = 0; i < out->rows; i++)
+    for (int i = 0; i < gradient->rows; i++)
     {
-        for (int j = 0; j < out->cols; j++)
+        for (int j = 0; j < gradient->cols; j++)
         {
-            // float expIn = std::exp(-in->data[i][j]);
-            // out->data[i][j] = expIn / ((1 + expIn) * (1 + expIn));
+            // float expIn = std::exp(-wI->data[i][j]);
+            // gradient->data[i][j] = expIn / ((1 + expIn) * (1 + expIn));
 
-            float sig = 1.0f / (1.0f + std::exp(-in->data[i][j]));
-            out->data[i][j] = sig * (1.0f - sig);
+            float sig = 1.0f / (1.0f + std::exp(-wI->data[i][j]));
+            gradient->data[i][j] = sig * (1.0f - sig);
+        }
+    }
+}
+
+void matrixCCrossEntropyDerivative(Matrix *output, Matrix *groundtruth, Matrix *gradient)
+{
+    // cce(x) = -groundtruth(0/1) * ln(x)
+    // cce´(x) = -groundtruth(0/1) * 1/x
+    assert(output->cols == gradient->cols && output->rows == gradient->rows);
+    assert(output->cols == groundtruth->cols && output->rows == groundtruth->rows);
+
+    for (int i = 0; i < gradient->rows; i++)
+    {
+        for (int j = 0; j < gradient->cols; j++)
+        {
+            if (output->data[i][j] != 0.0f)
+                gradient->data[i][j] = -groundtruth->data[i][j] * (1.0f / output->data[i][j]);
+            else
+                gradient->data[i][j] = 0.0f;
+        }
+    }
+}
+
+void matrixSoftMaxDerivative(Matrix *wIn, Matrix *groundtruth, Matrix *gradient)
+{
+    // only works with one hot encoded groundtruth and lossfunction = categorical crossentropy
+    assert(wIn->cols == gradient->cols && wIn->rows == gradient->rows);
+    assert(wIn->cols == groundtruth->cols && wIn->rows == groundtruth->rows);
+
+    for (int i = 0; i < gradient->cols; i++)
+    {
+        float expSum = 0.0f;
+        int index = -1;
+        for (int j = 0; j < gradient->rows; j++)
+        {
+            expSum += std::exp(wIn->data[i][j]);
+            if (groundtruth->data[i][j] == 1.0f)
+            {
+                index = j;
+            }
+        }
+
+        for (int j = 0; j < gradient->rows; j++)
+        {
+            if (j != index)
+            {
+                gradient->data[i][j] = -std::exp(wIn->data[i][index] + wIn->data[i][j]) / (expSum * expSum);
+            }
+            else
+            {
+                float expIndex = std::exp(wIn->data[i][index]);
+                gradient->data[i][j] = (expSum * expIndex - expIndex * expIndex) / (expSum * expSum);
+            }
         }
     }
 }
