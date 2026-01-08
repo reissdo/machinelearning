@@ -1,5 +1,5 @@
 # machinelearning
-a simple machine learning framework
+a simple machine learning framework build from scratch
 
 # Installation
 python3 loadMNIST.py
