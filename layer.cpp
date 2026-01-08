@@ -60,9 +60,9 @@ Matrix *Layer::getWeights()
     return &weights;
 }
 
-Matrix *Layer::getError()
+Matrix *Layer::getGradient()
 {
-    return error;
+    return gradient;
 }
 
 void Layer::allocateMatrices(int batchSize, bool training)
@@ -72,7 +72,7 @@ void Layer::allocateMatrices(int batchSize, bool training)
 
     if (training)
     {
-        error = new Matrix(weights.rows, batchSize);
+        gradient = new Matrix(weights.rows, batchSize);
         gradweights = new Matrix(weights.rows, weights.cols);
         gradbias = new Matrix(bias.rows, bias.cols);
     }
@@ -82,7 +82,7 @@ void Layer::freeMatrices()
 {
     delete weightedInput;
     delete activation;
-    delete error;
+    delete gradient;
 }
 
 void Layer::forward()
@@ -113,6 +113,90 @@ void Layer::forward()
         matrixSoftMax(weightedInput, activation);
         break;
     }
+}
+
+void Layer::calculateGradients()
+{
+    Matrix temp1(gradient->rows, gradient->cols);
+    Matrix temp2(gradient->rows, gradient->cols);
+
+    /*
+        calculate gradient dL/dz
+    */
+
+    // layer is output layer
+    if (subsequentLayer == nullptr)
+    {
+        assert(groundtruth != nullptr);
+        switch (activationType)
+        {
+        case ActivationType::SIGMOID:
+            std::cout << "not supported yet!" << std::endl;
+            // TODO: add LogLossDerivative
+            break;
+
+        case ActivationType::RELU:
+            std::cout << "not supported yet!" << std::endl;
+            // TODO: add MSEDerivative
+            break;
+
+        case ActivationType::SOFTMAX:
+            matrixSoftMaxCCECombinedDerivative(activation, groundtruth, gradient);
+            break;
+        default:
+            std::cout << "wrong activationtype in layer detected" << std::endl;
+        }
+    }
+    else // layer is hidden layer
+    {
+        matrixTranspose(subsequentLayer->getWeights(), gradient);
+        matrixMultiply(gradient, subsequentLayer->getGradient(), &temp1);
+
+        switch (activationType)
+        {
+        case ActivationType::SIGMOID:
+            matrixSigmoidDerivative(activation, gradient);
+            break;
+
+        case ActivationType::RELU:
+            matrixReLuDerivative(weightedInput, gradient);
+            break;
+
+        default:
+            std::cout << "wrong activationtype in layer detected" << std::endl;
+        }
+
+        matrixHadamard(&temp1, gradient, gradient);
+    }
+
+    /*
+        calculate gradweights dL/dW and gradbias dL/db
+    */
+
+    // bias
+    matrixRowMean(gradient, gradbias);
+
+    // weights
+    if (previousLayer != nullptr) // hidden layer
+    {
+        matrixTranspose(previousLayer->getActivation(), &temp1);
+    }
+    else // input layer
+    {
+        assert(input != nullptr);
+        matrixTranspose(input, &temp1);
+    }
+    matrixMultiply(gradient, &temp1, &temp2);
+    matrixScalarMultiply(&temp2, static_cast<float>(gradient->cols), gradweights);
+}
+
+void Layer::step(float learningRate)
+{
+    matrixScalarMultiply(gradweights, learningRate, gradweights);
+    matrixSubstract(&weights, gradweights, &weights);
+
+    matrixScalarMultiply(gradbias, learningRate, gradbias);
+    matrixSubstract(&bias, gradbias, &bias);
 }
 
 void Layer::print()

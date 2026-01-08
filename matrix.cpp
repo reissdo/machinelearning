@@ -173,7 +173,7 @@ void matrixReLu(Matrix *in, Matrix *out)
     {
         for (int j = 0; j < out->cols; j++)
         {
-            out->data[i][j] = in->data[i][j] > 0.0f ? in->data[i][j] : 0.0f;
+            out->data[i][j] = in->data[i][j] >= 0.0f ? in->data[i][j] : 0.0f;
         }
     }
 }
@@ -215,21 +215,6 @@ void matrixCategoricalCrossEntropy(Matrix *in, Matrix *groundtruth, float *cost)
     }
 
     *cost /= static_cast<float>(in->cols);
-}
-
-void matrixCloneCols(Matrix *in, Matrix *out, int size)
-{
-    assert(size > 0 && size > in->cols && in->cols == 1);
-    assert(out->cols == size && out->rows == in->rows);
-
-    for (int i = 0; i < in->rows; i++)
-    {
-        float temp = in->data[i][0];
-        for (int j = 0; j < size; j++)
-        {
-            out->data[i][j] = temp;
-        }
-    }
 }
 
 void matrixVectorAdd(Matrix *in, Matrix *vec, Matrix *out)
@@ -305,7 +290,7 @@ Matrix *matrixLoad(const char *filename)
         return nullptr;
     }
 
-    std::cout << "loading mnist dataset ..." << std::endl;
+    std::cout << "loading dataset ..." << std::endl;
 
     std::vector<std::vector<float>> temp_data;
     std::string line;
@@ -344,74 +329,73 @@ void matrixOneHot(Matrix *in, Matrix *out, int numClasses)
     }
 }
 
-void matrixSigmoidDerivative(Matrix *wI, Matrix *gradient)
+void matrixSigmoidDerivative(Matrix *activation, Matrix *gradient)
 {
     // sig´(x) = exp(-x) / (1 + exp(-x))^2
     // sig´(x) = sig(x) * (1 - sig(x))
-    assert((wI->rows == gradient->rows) && (wI->cols == gradient->cols));
+    // sig(x) -> activation
+    assert((activation->rows == gradient->rows) && (activation->cols == gradient->cols));
 
     for (int i = 0; i < gradient->rows; i++)
     {
         for (int j = 0; j < gradient->cols; j++)
         {
-            // float expIn = std::exp(-wI->data[i][j]);
-            // gradient->data[i][j] = expIn / ((1 + expIn) * (1 + expIn));
-
-            float sig = 1.0f / (1.0f + std::exp(-wI->data[i][j]));
-            gradient->data[i][j] = sig * (1.0f - sig);
+            float sigmoid = activation->data[i][j];
+            gradient->data[i][j] = sigmoid * (1.0f - sigmoid);
         }
     }
 }
 
-void matrixCCrossEntropyDerivative(Matrix *output, Matrix *groundtruth, Matrix *gradient)
+void matrixReLuDerivative(Matrix *wIn, Matrix *gradient)
 {
-    // cce(x) = -groundtruth(0/1) * ln(x)
-    // cce´(x) = -groundtruth(0/1) * 1/x
-    assert(output->cols == gradient->cols && output->rows == gradient->rows);
-    assert(output->cols == groundtruth->cols && output->rows == groundtruth->rows);
+    assert((wIn->rows == gradient->rows) && (wIn->cols == gradient->cols));
 
     for (int i = 0; i < gradient->rows; i++)
     {
         for (int j = 0; j < gradient->cols; j++)
         {
-            if (output->data[i][j] != 0.0f)
-                gradient->data[i][j] = -groundtruth->data[i][j] * (1.0f / output->data[i][j]);
-            else
-                gradient->data[i][j] = 0.0f;
+            wIn->data[i][j] >= 0.0f ? gradient->data[i][j] = 1.0f : gradient->data[i][j] = 0.0f;
         }
     }
 }
 
-void matrixSoftMaxDerivative(Matrix *wIn, Matrix *groundtruth, Matrix *gradient)
+void matrixSoftMaxCCECombinedDerivative(Matrix *activation, Matrix *groundtruthIndex, Matrix *gradient)
 {
-    // only works with one hot encoded groundtruth and lossfunction = categorical crossentropy
-    assert(wIn->cols == gradient->cols && wIn->rows == gradient->rows);
-    assert(wIn->cols == groundtruth->cols && wIn->rows == groundtruth->rows);
+    // groundtruth is NOT one hot encoded !!!
+    // CCE(z_i) = ln(exp(z_1) + ... + exp(z_I)) - z_k; k is the index for the true class
+    // dCCE/dz_k = softmax(z_k) - 1
+    // dCCE/dz_j = softmax(z_j)
+    // softmax(z) -> activation
 
-    for (int i = 0; i < gradient->cols; i++)
+    assert(activation->cols == gradient->cols && activation->rows == gradient->rows);
+    assert(groundtruthIndex->cols == 1 && groundtruthIndex->rows == activation->rows);
+
+    for (int j = 0; j < gradient->cols; j++)
     {
-        float expSum = 0.0f;
-        int index = -1;
-        for (int j = 0; j < gradient->rows; j++)
+        for (int i = 0; i < gradient->rows; i++)
         {
-            expSum += std::exp(wIn->data[i][j]);
-            if (groundtruth->data[i][j] == 1.0f)
+            gradient->data[i][j] = activation->data[i][j];
+            if (i == groundtruthIndex->data[0][j])
             {
-                index = j;
+                gradient->data[i][j] -= 1;
             }
+        }
+    }
+}
+
+void matrixRowMean(Matrix *in, Matrix *out)
+{
+    assert(out->cols == 1 && in->rows == out->rows);
+
+    float cols = static_cast<float>(in->cols);
+    for (int i = 0; i < out->rows; i++)
+    {
+        float sum = 0.0f;
+        for (int j = 0; j < in->cols; j++)
+        {
+            sum += in->data[i][j];
         }
 
-        for (int j = 0; j < gradient->rows; j++)
-        {
-            if (j != index)
-            {
-                gradient->data[i][j] = -std::exp(wIn->data[i][index] + wIn->data[i][j]) / (expSum * expSum);
-            }
-            else
-            {
-                float expIndex = std::exp(wIn->data[i][index]);
-                gradient->data[i][j] = (expSum * expIndex - expIndex * expIndex) / (expSum * expSum);
-            }
-        }
+        out->data[i][0] = sum / cols;
     }
 }
