@@ -2,7 +2,7 @@
 a simple machine learning framework
 
 # Installation
-pyrhon3 loadMNIST.py
+python3 loadMNIST.py
 
 mkdir build
 
