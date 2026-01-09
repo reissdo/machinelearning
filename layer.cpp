@@ -31,7 +31,7 @@ void Layer::initWeights()
     {
         for (int j = 0; j < weights.cols; j++)
         {
-            weights.data[i][j] = dist(rng);
+            weights.data[i * weights.cols + j] = dist(rng);
         }
     }
 
@@ -40,7 +40,7 @@ void Layer::initWeights()
         float value = dist(rng);
         for (int j = 0; j < bias.cols; j++)
         {
-            bias.data[i][j] = value;
+            bias.data[i * bias.cols + j] = value;
         }
     }
 }

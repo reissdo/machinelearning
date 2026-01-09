@@ -6,16 +6,12 @@
 #include <sstream>
 #include <string>
 
-Matrix::Matrix(int rows_, int cols_, float value_) : rows(rows_), cols(cols_), data(rows_, std::vector<float>(cols_, value_))
+Matrix::Matrix(int rows_, int cols_, float value_) : rows(rows_), cols(cols_), data(rows_ * cols_, value_)
 {
 }
 
-Matrix::Matrix(std::vector<std::vector<float>> data_) : data(data_)
+Matrix::Matrix(int rows_, int cols_, std::vector<float> data_) : rows(rows_), cols(cols_), data(std::move(data_))
 {
-    assert(data_.size() > 0);
-
-    rows = data_.size();
-    cols = data[0].size();
 }
 
 void Matrix::getCols(int startIndex, int endIndex, Matrix *out)
@@ -28,7 +24,7 @@ void Matrix::getCols(int startIndex, int endIndex, Matrix *out)
         int col = 0;
         for (int j = startIndex; j < endIndex; j++)
         {
-            out->data[i][col] = data[i][j];
+            out->data[i * out->cols + col] = data[i * cols + j];
             col++;
         }
     }
@@ -44,7 +40,7 @@ void Matrix::getRows(int startIndex, int endIndex, Matrix *out)
     {
         for (int j = 0; j < out->cols; j++)
         {
-            out->data[row][j] = data[i][j];
+            out->data[row * out->cols + j] = data[i * cols + j];
         }
         row++;
     }
@@ -62,7 +58,7 @@ void Matrix::print()
 
         for (int j = 0; j < cols; j++)
         {
-            std::cout << data[i][j];
+            std::cout << data[i * cols + j];
             if (j < cols - 1)
                 std::cout << ",";
         }
@@ -87,7 +83,7 @@ void matrixAdd(Matrix *in1, Matrix *in2, Matrix *out)
     {
         for (int j = 0; j < out->cols; j++)
         {
-            out->data[i][j] = in1->data[i][j] + in2->data[i][j];
+            out->data[i * out->cols + j] = in1->data[i * in1->cols + j] + in2->data[i * in2->cols + j];
         }
     }
 }
@@ -100,7 +96,7 @@ void matrixSubstract(Matrix *in1, Matrix *in2, Matrix *out)
     {
         for (int j = 0; j < out->cols; j++)
         {
-            out->data[i][j] = in1->data[i][j] - in2->data[i][j];
+            out->data[i * out->cols + j] = in1->data[i * in1->cols + j] - in2->data[i * in2->cols + j];
         }
     }
 }
@@ -114,7 +110,7 @@ void matrixTranspose(Matrix *in, Matrix *out)
     {
         for (int j = 0; j < out->cols; j++)
         {
-            out->data[i][j] = in->data[j][i];
+            out->data[i * out->cols + j] = in->data[j * in->cols + i];
         }
     }
 }
@@ -132,9 +128,9 @@ void matrixMultiply(Matrix *in1, Matrix *in2, Matrix *out)
             float dot = 0.0f;
             for (int k = 0; k < in1->cols; k++)
             {
-                dot += (in1->data[i][k] * in2->data[k][j]);
+                dot += (in1->data[i * in1->cols + k] * in2->data[k * in2->cols + j]);
             }
-            out->data[i][j] = dot;
+            out->data[i * out->cols + j] = dot;
         }
     }
 }
@@ -147,7 +143,7 @@ void matrixHadamard(Matrix *in1, Matrix *in2, Matrix *out)
     {
         for (int j = 0; j < out->cols; j++)
         {
-            out->data[i][j] = in1->data[i][j] * in2->data[i][j];
+            out->data[i * out->cols + j] = in1->data[i * in1->cols + j] * in2->data[i * in2->cols + j];
         }
     }
 }
@@ -160,7 +156,7 @@ void matrixSigmoid(Matrix *in, Matrix *out)
     {
         for (int j = 0; j < out->cols; j++)
         {
-            out->data[i][j] = 1.0f / (1.0f + std::exp(-in->data[i][j]));
+            out->data[i * out->cols + j] = 1.0f / (1.0f + std::exp(-in->data[i * in->cols + j]));
         }
     }
 }
@@ -173,7 +169,7 @@ void matrixReLu(Matrix *in, Matrix *out)
     {
         for (int j = 0; j < out->cols; j++)
         {
-            out->data[i][j] = in->data[i][j] >= 0.0f ? in->data[i][j] : 0.0f;
+            out->data[i * out->cols + j] = in->data[i * in->cols + j] >= 0.0f ? in->data[i * in->cols + j] : 0.0f;
         }
     }
 }
@@ -187,12 +183,12 @@ void matrixSoftMax(Matrix *in, Matrix *out)
         float expSum = 0.0f;
         for (int j = 0; j < in->rows; j++)
         {
-            expSum += std::exp(in->data[j][i]);
+            expSum += std::exp(in->data[j * in->cols + i]);
         }
 
         for (int k = 0; k < in->rows; k++)
         {
-            out->data[k][i] = std::exp(in->data[k][i]) / expSum;
+            out->data[k * out->cols + i] = std::exp(in->data[k * in->cols + i]) / expSum;
         }
     }
 }
@@ -208,7 +204,7 @@ void matrixCategoricalCrossEntropy(Matrix *in, Matrix *groundtruth, float *cost)
         float colCost = 0.0f;
         for (int i = 0; i < in->rows; i++)
         {
-            colCost += groundtruth->data[i][j] * std::log(in->data[i][j]);
+            colCost += groundtruth->data[i * groundtruth->cols + j] * std::log(in->data[i * in->cols + j]);
         }
         colCost *= -1.0f;
         *cost += colCost;
@@ -226,7 +222,7 @@ void matrixVectorAdd(Matrix *in, Matrix *vec, Matrix *out)
     {
         for (int j = 0; j < out->cols; j++)
         {
-            out->data[i][j] = in->data[i][j] + vec->data[i][0];
+            out->data[i * out->cols + j] = in->data[i * in->cols + j] + vec->data[i];
         }
     }
 }
@@ -239,7 +235,7 @@ void matrixScalarMultiply(Matrix *in, float scalar, Matrix *out)
     {
         for (int j = 0; j < out->cols; j++)
         {
-            out->data[i][j] = in->data[i][j] * scalar;
+            out->data[i * out->cols + j] = in->data[i * in->cols + j] * scalar;
         }
     }
 }
@@ -251,7 +247,7 @@ void matrixSum(Matrix *in, float *out)
     {
         for (int j = 0; j < in->cols; j++)
         {
-            *out += in->data[i][j];
+            *out += in->data[i * in->cols + j];
         }
     }
 }
@@ -268,16 +264,16 @@ void matrixArgMax(Matrix *in, Matrix *argmax)
         int maxIndexJ = 0;
         for (int i = 0; i < in->rows; i++)
         {
-            if (in->data[i][j] > maxVal)
+            if (in->data[i * in->cols + j] > maxVal)
             {
-                maxVal = in->data[i][j];
+                maxVal = in->data[i * in->cols + j];
                 maxIndexI = i;
                 maxIndexJ = j;
             }
         }
 
-        argmax->data[0][j] = maxIndexI;
-        argmax->data[1][j] = maxIndexJ;
+        argmax->data[j] = maxIndexI;
+        argmax->data[argmax->cols + j] = maxIndexJ;
     }
 }
 
@@ -292,28 +288,31 @@ Matrix *matrixLoad(const char *filename)
 
     std::cout << "loading dataset ..." << std::endl;
 
-    std::vector<std::vector<float>> temp_data;
+    std::vector<float> temp_data;
     std::string line;
+
+    int count = 0;
+    int cols = -1;
+    int rows = -1;
 
     while (std::getline(file, line))
     {
-        std::vector<float> row;
         std::stringstream ss(line);
         float value;
         while (ss >> value)
         {
-            row.push_back(value);
+            count++;
+            temp_data.push_back(value);
         }
-        if (!row.empty())
+
+        if (cols == -1)
         {
-            temp_data.push_back(row);
+            cols = count;
         }
     }
 
-    if (temp_data.empty())
-        return nullptr;
-
-    return new Matrix(temp_data);
+    rows = count / cols;
+    return new Matrix(rows, cols, temp_data);
 }
 
 void matrixPrintMNIST(Matrix *in)
@@ -324,7 +323,7 @@ void matrixPrintMNIST(Matrix *in)
     {
         for (int j = 0; j < 28; j++)
         {
-            int val = static_cast<int>(in->data[j + i * 28][0]);
+            int val = static_cast<int>(in->data[j + i * 28]);
             int grayIdx = 232 + (val * 23 / 255);
             std::cout << "\033[48;5;" << grayIdx << "m  \033[0m";
         }
@@ -340,8 +339,8 @@ void matrixOneHot(Matrix *in, Matrix *out, int numClasses)
 
     for (int i = 0; i < in->cols; i++)
     {
-        int classIndex = in->data[0][i];
-        out->data[classIndex][i] = 1.0f;
+        int classIndex = in->data[i];
+        out->data[classIndex * out->cols + i] = 1.0f;
     }
 }
 
@@ -356,8 +355,8 @@ void matrixSigmoidDerivative(Matrix *activation, Matrix *gradient)
     {
         for (int j = 0; j < gradient->cols; j++)
         {
-            float sigmoid = activation->data[i][j];
-            gradient->data[i][j] = sigmoid * (1.0f - sigmoid);
+            float sigmoid = activation->data[i * activation->cols + j];
+            gradient->data[i * gradient->cols + j] = sigmoid * (1.0f - sigmoid);
         }
     }
 }
@@ -370,7 +369,7 @@ void matrixReLuDerivative(Matrix *wIn, Matrix *gradient)
     {
         for (int j = 0; j < gradient->cols; j++)
         {
-            wIn->data[i][j] >= 0.0f ? gradient->data[i][j] = 1.0f : gradient->data[i][j] = 0.0f;
+            wIn->data[i * wIn->cols + j] >= 0.0f ? gradient->data[i * gradient->cols + j] = 1.0f : gradient->data[i * gradient->cols + j] = 0.0f;
         }
     }
 }
@@ -390,10 +389,10 @@ void matrixSoftMaxCCECombinedDerivative(Matrix *activation, Matrix *groundtruthI
     {
         for (int i = 0; i < gradient->rows; i++)
         {
-            gradient->data[i][j] = activation->data[i][j];
-            if (i == groundtruthIndex->data[0][j])
+            gradient->data[i * gradient->cols + j] = activation->data[i * activation->cols + j];
+            if (i == groundtruthIndex->data[j])
             {
-                gradient->data[i][j] -= 1;
+                gradient->data[i * gradient->cols + j] -= 1;
             }
         }
     }
@@ -409,9 +408,9 @@ void matrixRowMean(Matrix *in, Matrix *out)
         float sum = 0.0f;
         for (int j = 0; j < in->cols; j++)
         {
-            sum += in->data[i][j];
+            sum += in->data[i * in->cols + j];
         }
 
-        out->data[i][0] = sum / cols;
+        out->data[i] = sum / cols;
     }
 }

@@ -7,10 +7,10 @@ struct Matrix
 {
     int cols;
     int rows;
-    std::vector<std::vector<float>> data; // data[row][col]
+    std::vector<float> data; // data[row * cols + col] = data[i * cols + j] = data[i][j]
 
     Matrix(int rows_, int cols_, float value_ = 0.0f);
-    Matrix(std::vector<std::vector<float>> data_);
+    Matrix(int rows_, int cols_, std::vector<float> data);
     void getCols(int startIndex, int endIndex, Matrix *out);
     void getRows(int startIndex, int endIndex, Matrix *out);
 
@@ -60,7 +60,7 @@ void matrixPrintMNIST(Matrix *in);
     gradient functions
 */
 void matrixSigmoidDerivative(Matrix *activation, Matrix *gradient);
-void matrixReLuDerivative(Matrix *wIn,Matrix *gradient);
+void matrixReLuDerivative(Matrix *wIn, Matrix *gradient);
 void matrixSoftMaxCCECombinedDerivative(Matrix *activation, Matrix *groundtruthIndex, Matrix *gradient);
 
 #endif

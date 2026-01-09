@@ -50,7 +50,7 @@ void Model::predict(Matrix *data, Matrix *prediction)
         layers[i]->forward();
     }
 
-    *prediction = layers.back()->getActivation()->data;
+    *prediction = *layers.back()->getActivation();
     freeLayers();
 }
 
