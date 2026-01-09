@@ -54,6 +54,7 @@ void matrixCategoricalCrossEntropy(Matrix *in, Matrix *groundtruth, float *loss)
 Matrix *matrixLoad(const char *filename);
 void matrixArgMax(Matrix *in, Matrix *argmax);
 void matrixOneHot(Matrix *in, Matrix *out, int numClasses);
+void matrixPrintMNIST(Matrix *in);
 
 /*
     gradient functions

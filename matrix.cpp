@@ -316,6 +316,22 @@ Matrix *matrixLoad(const char *filename)
     return new Matrix(temp_data);
 }
 
+void matrixPrintMNIST(Matrix *in)
+{
+    assert(in->cols == 1 && in->rows == 784);
+
+    for (int i = 0; i < 28; i++)
+    {
+        for (int j = 0; j < 28; j++)
+        {
+            int val = static_cast<int>(in->data[j + i * 28][0]);
+            int grayIdx = 232 + (val * 23 / 255);
+            std::cout << "\033[48;5;" << grayIdx << "m  \033[0m";
+        }
+        std::cout << "\n";
+    }
+}
+
 void matrixOneHot(Matrix *in, Matrix *out, int numClasses)
 {
     // out->data has to be full of zeros

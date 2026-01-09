@@ -84,5 +84,9 @@ int main(void)
         }
     }
 
+    Matrix number(mnistDataSize, 1);
+    inputs->getCols(10, 11, &number);
+    matrixPrintMNIST(&number);
+
     return 0;
 }
