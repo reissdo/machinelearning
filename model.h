@@ -26,8 +26,8 @@ private:
     std::vector<Layer *> layers;
 
     float calculateCost(Matrix *layerOutput, Matrix *groundtruth);
-    void allocateLayersTraining(uint size);
-    void allocateLayersPrediction(uint size);
+    void allocateLayersTraining(int size);
+    void allocateLayersPrediction(int size);
     void freeLayersTraining();
     void freeLayersPrediction();
 };

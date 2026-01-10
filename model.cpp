@@ -19,17 +19,17 @@ void Model::addLayer(Layer *layer)
     layers.push_back(layer);
 }
 
-void Model::allocateLayersTraining(uint size)
+void Model::allocateLayersTraining(int size)
 {
-    for (uint i = 0; i < layers.size(); i++)
+    for (int i = 0; i < layers.size(); i++)
     {
         layers[i]->allocateMatricesTraining(size);
     }
 }
 
-void Model::allocateLayersPrediction(uint size)
+void Model::allocateLayersPrediction(int size)
 {
-    for (uint i = 0; i < layers.size(); i++)
+    for (int i = 0; i < layers.size(); i++)
     {
         layers[i]->allocateMatricesPrediction(size);
     }
@@ -37,7 +37,7 @@ void Model::allocateLayersPrediction(uint size)
 
 void Model::freeLayersTraining()
 {
-    for (uint i = 0; i < layers.size(); i++)
+    for (int i = 0; i < layers.size(); i++)
     {
         layers[i]->freeMatricesTraining();
     }
@@ -45,7 +45,7 @@ void Model::freeLayersTraining()
 
 void Model::freeLayersPrediction()
 {
-    for (uint i = 0; i < layers.size(); i++)
+    for (int i = 0; i < layers.size(); i++)
     {
         layers[i]->freeMatricesPrediction();
     }
@@ -56,7 +56,7 @@ void Model::predict(Matrix *data, Matrix *prediction)
     allocateLayersPrediction(data->cols);
     layers.front()->setInput(data);
 
-    for (uint i = 0; i < layers.size(); i++)
+    for (int i = 0; i < layers.size(); i++)
     {
         layers[i]->predict();
     }
@@ -69,7 +69,7 @@ void Model::forward(Matrix *data, Matrix *groundtruth, float *loss)
 {
     layers.front()->setInput(data);
 
-    for (uint i = 0; i < layers.size(); i++)
+    for (int i = 0; i < layers.size(); i++)
     {
         layers[i]->forward();
     }
@@ -96,7 +96,7 @@ void Model::calculateGradients(Matrix *input, Matrix *groundtruth)
     layers.back()->setGroundtruth(groundtruth);
     layers.front()->setInput(input);
 
-    for (uint i = layers.size() - 1; i > 0; i--)
+    for (int i = layers.size() - 1; i >= 0; i--)
     {
         layers[i]->calculateGradients();
     }
@@ -104,7 +104,7 @@ void Model::calculateGradients(Matrix *input, Matrix *groundtruth)
 
 void Model::step(float learningRate)
 {
-    for (uint i = 0; i < layers.size(); i++)
+    for (int i = 0; i < layers.size(); i++)
     {
         layers[i]->step(learningRate);
     }
@@ -112,7 +112,7 @@ void Model::step(float learningRate)
 
 void Model::print()
 {
-    for (uint i = 0; i < layers.size(); i++)
+    for (int i = 0; i < layers.size(); i++)
     {
         std::cout << "layer " << i << std::endl;
         layers[i]->print();
@@ -121,7 +121,7 @@ void Model::print()
 
 void Model::information()
 {
-    for (uint i = 0; i < layers.size(); i++)
+    for (int i = 0; i < layers.size(); i++)
     {
         std::cout << "Layer: " << i << " >> ";
         layers[i]->information();
@@ -136,13 +136,13 @@ float Model::calculateCost(Matrix *layerOutput, Matrix *groundtruth)
 
 void Model::initTraining(int batchSize)
 {
-    for (uint i = 0; i < layers.size() - 1; i++)
+    for (int i = 0; i < layers.size() - 1; i++)
     {
         layers[i]->setSubsequentLayer(layers[i + 1]);
     }
     layers.back()->setSubsequentLayer(nullptr);
 
-    for (uint i = 0; i < layers.size(); i++)
+    for (int i = 0; i < layers.size(); i++)
     {
         layers[i]->allocateMatricesTraining(batchSize);
     }

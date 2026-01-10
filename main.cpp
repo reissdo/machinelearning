@@ -12,8 +12,8 @@ int main(void)
     const int mnistDataSize = 784;
     const int mnistClasses = 10;
     const int epochs = 10;
-    const int batchSize = 200;
-    const float learningRate = 0.25;
+    const int batchSize = 100;
+    const float learningRate = 0.1f;
 
     /*
         data preparation
@@ -84,7 +84,8 @@ int main(void)
             labels->getCols(b * batchSize, b * batchSize + batchSize, &batchGroundTruth);
 
             // TODO: add prediction on test data
-            
+            // TODO: nur one hot labels übergeben
+
             model.forward(&batch, &batchGroundTruthOneHot, &loss);
             std::cout << "\repoch: " << e << " loss: " << loss << std::flush;
 
@@ -94,13 +95,20 @@ int main(void)
         std::cout << std::endl;
     }
 
-    Matrix number(mnistDataSize, 1);
-    inputs->getCols(5, 6, &number);
-    matrixPrintMNIST(&number);
+    int offset = 10;
+    for (int k = 0; k < 10; k++)
+    {
+        Matrix number(mnistDataSize, 1);
+        inputs->getCols(k + offset, k + offset + 1, &number);
+        matrixPrintMNIST(&number);
 
-    Matrix prediction(mnistClasses, 1);
-    model.predict(&number, &prediction);
-    prediction.print();
+        Matrix prediction(mnistClasses, 1);
+        model.predict(&number, &prediction);
+
+        Matrix argmaxNumber(2, 1);
+        matrixArgMax(&prediction, &argmaxNumber);
+        std::cout << "predicted number: " << argmaxNumber.data[0] << std::endl;
+    }
 
     return 0;
 }
