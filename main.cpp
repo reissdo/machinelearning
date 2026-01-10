@@ -11,8 +11,9 @@ int main(void)
 
     const int mnistDataSize = 784;
     const int mnistClasses = 10;
-    const int epochs = 5;
-    const int batchSize = 100;
+    const int epochs = 10;
+    const int batchSize = 200;
+    const float learningRate = 0.25;
 
     /*
         data preparation
@@ -43,8 +44,8 @@ int main(void)
 
     Matrix *oneHotLabels = new Matrix(mnistClasses, labels->cols, 0.0f);
     matrixOneHot(labels, oneHotLabels, mnistClasses);
-    delete labels;
 
+    labels->shape();
     oneHotLabels->shape();
     inputs->shape();
 
@@ -58,9 +59,9 @@ int main(void)
     model.addLayer(new Layer(100, 50, ActivationType::SIGMOID));
     model.addLayer(new Layer(50, 20, ActivationType::SIGMOID));
     model.addLayer(new Layer(20, mnistClasses, ActivationType::SOFTMAX));
-    model.addCostFunction(CostFunction::CCROSSENTROPY);
 
     model.information();
+    model.initTraining(batchSize);
 
     /*
         training
@@ -71,22 +72,35 @@ int main(void)
 
     for (int e = 0; e < epochs; e++)
     {
-        std::cout << "epoch: " << e << std::endl;
         for (int b = 0; b < numBatches; b++)
         {
             Matrix batch(inputs->rows, batchSize);
-            inputs->getCols(b * batchSize, b * batchSize + batchSize, &batch);
+            Matrix batchGroundTruthOneHot(mnistClasses, batchSize);
+            Matrix batchGroundTruth(1, batchSize);
+            float loss;
 
-            // model.predict(testData); -> for accuracy
-            // model.forward(batch); -> forwardpass aller layer + loss over batch
-            // model.calculateGradients(); -> backpropagation
-            // model.step(learníngRate); -> optimizer step
+            inputs->getCols(b * batchSize, b * batchSize + batchSize, &batch);
+            oneHotLabels->getCols(b * batchSize, b * batchSize + batchSize, &batchGroundTruthOneHot);
+            labels->getCols(b * batchSize, b * batchSize + batchSize, &batchGroundTruth);
+
+            // TODO: add prediction on test data
+            
+            model.forward(&batch, &batchGroundTruthOneHot, &loss);
+            std::cout << "\repoch: " << e << " loss: " << loss << std::flush;
+
+            model.calculateGradients(&batch, &batchGroundTruth);
+            model.step(learningRate);
         }
+        std::cout << std::endl;
     }
 
     Matrix number(mnistDataSize, 1);
-    inputs->getCols(10, 11, &number);
+    inputs->getCols(5, 6, &number);
     matrixPrintMNIST(&number);
+
+    Matrix prediction(mnistClasses, 1);
+    model.predict(&number, &prediction);
+    prediction.print();
 
     return 0;
 }

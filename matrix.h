@@ -1,18 +1,23 @@
 #ifndef MATRIX_H
 #define MATRIX_H
 
+#include <cstdint>
 #include <vector>
+
+typedef uint32_t uint;
 
 struct Matrix
 {
-    int cols;
-    int rows;
+    uint cols;
+    uint rows;
     std::vector<float> data; // data[row * cols + col] = data[i * cols + j] = data[i][j]
 
-    Matrix(int rows_, int cols_, float value_ = 0.0f);
-    Matrix(int rows_, int cols_, std::vector<float> data);
-    void getCols(int startIndex, int endIndex, Matrix *out);
-    void getRows(int startIndex, int endIndex, Matrix *out);
+    Matrix();
+    Matrix(uint rows_, uint cols_, float value_ = 0.0f);
+    Matrix(uint rows_, uint cols_, std::vector<float> data);
+
+    void getCols(uint startIndex, uint endIndex, Matrix *out);
+    void getRows(uint startIndex, uint endIndex, Matrix *out);
 
     void print();
     void shape();
@@ -42,6 +47,8 @@ void matrixSoftMax(Matrix *in, Matrix *out);
     loss functions
 */
 void matrixCategoricalCrossEntropy(Matrix *in, Matrix *groundtruth, float *loss);
+void matrixMSE(Matrix *in, Matrix *groundtruth, float *loss);
+void matrixLogLoss(Matrix *in, Matrix *groundtruth, float *loss);
 
 /*
     cost functions
@@ -53,7 +60,7 @@ void matrixCategoricalCrossEntropy(Matrix *in, Matrix *groundtruth, float *loss)
 */
 Matrix *matrixLoad(const char *filename);
 void matrixArgMax(Matrix *in, Matrix *argmax);
-void matrixOneHot(Matrix *in, Matrix *out, int numClasses);
+void matrixOneHot(Matrix *in, Matrix *out, uint numClasses);
 void matrixPrintMNIST(Matrix *in);
 
 /*

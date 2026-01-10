@@ -6,23 +6,18 @@
 
 #include <vector>
 
-enum class CostFunction
-{
-    LOGLOSS,
-    MSE,
-    CCROSSENTROPY
-};
-
 class Model
 {
 public:
     Model();
     void addLayer(Layer *layer);
-    void addCostFunction(CostFunction costFunction);
+    void prepData(Matrix *data, Matrix *trainData, Matrix *trainLabels, Matrix *testData, Matrix *testLabels, float splitRatio);
 
-    void initTraining();
-    void train(Matrix *data, Matrix *groundtruth, float learningRate, int batchSize);
+    void initTraining(int batchSize);
+    void forward(Matrix *data, Matrix *groundtruth, float *loss);
     void predict(Matrix *data, Matrix *prediction);
+    void calculateGradients(Matrix *input, Matrix *groundtruth);
+    void step(float learningRate);
 
     void print();
     void information();
@@ -30,10 +25,11 @@ public:
 private:
     std::vector<Layer *> layers;
 
-    CostFunction costFunction;
     float calculateCost(Matrix *layerOutput, Matrix *groundtruth);
-    void allocateLayers(int size, bool training);
-    void freeLayers();
+    void allocateLayersTraining(uint size);
+    void allocateLayersPrediction(uint size);
+    void freeLayersTraining();
+    void freeLayersPrediction();
 };
 
 #endif

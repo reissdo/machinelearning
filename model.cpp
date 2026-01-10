@@ -19,44 +19,100 @@ void Model::addLayer(Layer *layer)
     layers.push_back(layer);
 }
 
-void Model::addCostFunction(CostFunction costFunction_)
+void Model::allocateLayersTraining(uint size)
 {
-    costFunction = costFunction_;
-}
-
-void Model::allocateLayers(int size, bool training)
-{
-    for (int i = 0; i < layers.size(); i++)
+    for (uint i = 0; i < layers.size(); i++)
     {
-        layers[i]->allocateMatrices(size, training);
+        layers[i]->allocateMatricesTraining(size);
     }
 }
 
-void Model::freeLayers()
+void Model::allocateLayersPrediction(uint size)
 {
-    for (int i = 0; i < layers.size(); i++)
+    for (uint i = 0; i < layers.size(); i++)
     {
-        layers[i]->freeMatrices();
+        layers[i]->allocateMatricesPrediction(size);
+    }
+}
+
+void Model::freeLayersTraining()
+{
+    for (uint i = 0; i < layers.size(); i++)
+    {
+        layers[i]->freeMatricesTraining();
+    }
+}
+
+void Model::freeLayersPrediction()
+{
+    for (uint i = 0; i < layers.size(); i++)
+    {
+        layers[i]->freeMatricesPrediction();
     }
 }
 
 void Model::predict(Matrix *data, Matrix *prediction)
 {
-    allocateLayers(data->cols, false);
+    allocateLayersPrediction(data->cols);
     layers.front()->setInput(data);
 
-    for (int i = 0; i < layers.size(); i++)
+    for (uint i = 0; i < layers.size(); i++)
+    {
+        layers[i]->predict();
+    }
+
+    *prediction = *layers.back()->getPredictionActivation();
+    freeLayersPrediction();
+}
+
+void Model::forward(Matrix *data, Matrix *groundtruth, float *loss)
+{
+    layers.front()->setInput(data);
+
+    for (uint i = 0; i < layers.size(); i++)
     {
         layers[i]->forward();
     }
 
-    *prediction = *layers.back()->getActivation();
-    freeLayers();
+    // lossfunction
+    switch (layers.back()->getActivationType())
+    {
+    case ActivationType::RELU:
+        matrixMSE(layers.back()->getActivation(), groundtruth, loss);
+        break;
+
+    case ActivationType::SIGMOID:
+        matrixLogLoss(layers.back()->getActivation(), groundtruth, loss);
+        break;
+
+    case ActivationType::SOFTMAX:
+        matrixCategoricalCrossEntropy(layers.back()->getActivation(), groundtruth, loss);
+        break;
+    }
+}
+
+void Model::calculateGradients(Matrix *input, Matrix *groundtruth)
+{
+    layers.back()->setGroundtruth(groundtruth);
+    layers.front()->setInput(input);
+
+    for (uint i = layers.size() - 1; i > 0; i--)
+    {
+        layers[i]->calculateGradients();
+    }
+}
+
+void Model::step(float learningRate)
+{
+    for (uint i = 0; i < layers.size(); i++)
+    {
+        layers[i]->step(learningRate);
+    }
 }
 
 void Model::print()
 {
-    for (int i = 0; i < layers.size(); i++)
+    for (uint i = 0; i < layers.size(); i++)
     {
         std::cout << "layer " << i << std::endl;
         layers[i]->print();
@@ -65,7 +121,7 @@ void Model::print()
 
 void Model::information()
 {
-    for (int i = 0; i < layers.size(); i++)
+    for (uint i = 0; i < layers.size(); i++)
     {
         std::cout << "Layer: " << i << " >> ";
         layers[i]->information();
@@ -78,19 +134,20 @@ float Model::calculateCost(Matrix *layerOutput, Matrix *groundtruth)
     return cost;
 }
 
-void Model::train(Matrix *data, Matrix *groundtruth, float learningRate, int batchSize)
+void Model::initTraining(int batchSize)
 {
-    // allocateLayers(batchSize);
-    // layers.front()->setInput(data);
-
-    // freeLayers();
-}
-
-void Model::initTraining()
-{
-    for (int i = 0; i < layers.size() - 1; i++)
+    for (uint i = 0; i < layers.size() - 1; i++)
     {
         layers[i]->setSubsequentLayer(layers[i + 1]);
     }
     layers.back()->setSubsequentLayer(nullptr);
+
+    for (uint i = 0; i < layers.size(); i++)
+    {
+        layers[i]->allocateMatricesTraining(batchSize);
+    }
+}
+
+void Model::prepData(Matrix *data, Matrix *trainData, Matrix *trainLabels, Matrix *testData, Matrix *testLabels, float splitRatio)
+{
 }

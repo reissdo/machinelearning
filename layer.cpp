@@ -4,9 +4,9 @@
 #include <iostream>
 #include <string>
 
-Layer::Layer(int inputSize_, int outputSize_, ActivationType activationType_) : activationType(activationType_),
-                                                                                weights(outputSize_, inputSize_),
-                                                                                bias(outputSize_, 1)
+Layer::Layer(uint inputSize_, uint outputSize_, ActivationType activationType_) : activationType(activationType_),
+                                                                                  weights(outputSize_, inputSize_),
+                                                                                  bias(outputSize_, 1)
 {
 }
 
@@ -27,18 +27,18 @@ void Layer::initWeights()
     std::mt19937 rng(dev());
     std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
-    for (int i = 0; i < weights.rows; i++)
+    for (uint i = 0; i < weights.rows; i++)
     {
-        for (int j = 0; j < weights.cols; j++)
+        for (uint j = 0; j < weights.cols; j++)
         {
             weights.data[i * weights.cols + j] = dist(rng);
         }
     }
 
-    for (int i = 0; i < bias.rows; i++)
+    for (uint i = 0; i < bias.rows; i++)
     {
         float value = dist(rng);
-        for (int j = 0; j < bias.cols; j++)
+        for (uint j = 0; j < bias.cols; j++)
         {
             bias.data[i * bias.cols + j] = value;
         }
@@ -48,6 +48,16 @@ void Layer::initWeights()
 void Layer::setInput(Matrix *input_)
 {
     input = input_;
+}
+
+void Layer::setGroundtruth(Matrix *groundtruth_)
+{
+    groundtruth = groundtruth_;
+}
+
+Matrix *Layer::getPredictionActivation()
+{
+    return predictActivation;
 }
 
 Matrix *Layer::getActivation()
@@ -65,24 +75,61 @@ Matrix *Layer::getGradient()
     return gradient;
 }
 
-void Layer::allocateMatrices(int batchSize, bool training)
+Matrix *Layer::getWeightedInput()
 {
+    return weightedInput;
+}
+
+void Layer::allocateMatricesTraining(uint batchSize)
+{
+
     weightedInput = new Matrix(weights.rows, batchSize);
     activation = new Matrix(weights.rows, batchSize);
 
-    if (training)
+    gradient = new Matrix(weights.rows, batchSize);
+    gradweights = new Matrix(weights.rows, weights.cols);
+    gradbias = new Matrix(bias.rows, bias.cols);
+
+    if (subsequentLayer != nullptr)
     {
-        gradient = new Matrix(weights.rows, batchSize);
-        gradweights = new Matrix(weights.rows, weights.cols);
-        gradbias = new Matrix(bias.rows, bias.cols);
+        assert(subsequentLayer->weights.cols == weights.rows);
+
+        tempSsWeightsT = new Matrix(subsequentLayer->weights.cols, subsequentLayer->weights.rows);
+        tempdZdA = new Matrix(weights.rows, batchSize);
     }
+    tempPrActivationT = new Matrix(batchSize, weights.cols);
 }
 
-void Layer::freeMatrices()
+void Layer::allocateMatricesPrediction(uint batchSize)
+{
+
+    predictionWeightedInput = new Matrix(weights.rows, batchSize);
+    predictActivation = new Matrix(weights.rows, batchSize);
+}
+
+void Layer::freeMatricesTraining()
 {
     delete weightedInput;
     delete activation;
     delete gradient;
+
+    delete gradweights;
+    delete gradbias;
+
+    delete tempSsWeightsT;
+    delete tempdZdA;
+    delete tempPrActivationT;
+}
+
+void Layer::freeMatricesPrediction()
+{
+    delete predictionWeightedInput;
+    delete predictActivation;
+}
+
+ActivationType Layer::getActivationType()
+{
+    return activationType;
 }
 
 void Layer::forward()
@@ -115,14 +162,43 @@ void Layer::forward()
     }
 }
 
+void Layer::predict()
+{
+    if (previousLayer == nullptr)
+    {
+        assert(input != nullptr);
+        matrixMultiply(&weights, input, predictionWeightedInput);
+    }
+    else
+    {
+        matrixMultiply(&weights, previousLayer->predictActivation, predictionWeightedInput);
+    }
+
+    matrixVectorAdd(predictionWeightedInput, &bias, predictionWeightedInput);
+
+    switch (activationType)
+    {
+    case ActivationType::SIGMOID:
+        matrixSigmoid(predictionWeightedInput, predictActivation);
+        break;
+
+    case ActivationType::RELU:
+        matrixReLu(predictionWeightedInput, predictActivation);
+        break;
+
+    case ActivationType::SOFTMAX:
+        matrixSoftMax(predictionWeightedInput, predictActivation);
+        break;
+    }
+}
+
 void Layer::calculateGradients()
 {
-    Matrix temp1(gradient->rows, gradient->cols);
-    Matrix temp2(gradient->rows, gradient->cols);
-
     /*
         calculate gradient dL/dz
     */
+
+    Matrix temp1(gradient->rows, gradient->cols);
 
     // layer is output layer
     if (subsequentLayer == nullptr)
@@ -149,8 +225,9 @@ void Layer::calculateGradients()
     }
     else // layer is hidden layer
     {
-        matrixTranspose(subsequentLayer->getWeights(), gradient);
-        matrixMultiply(gradient, subsequentLayer->getGradient(), &temp1);
+
+        matrixTranspose(subsequentLayer->getWeights(), tempSsWeightsT);
+        matrixMultiply(tempSsWeightsT, subsequentLayer->getGradient(), tempdZdA);
 
         switch (activationType)
         {
@@ -165,8 +242,7 @@ void Layer::calculateGradients()
         default:
             std::cout << "wrong activationtype in layer detected" << std::endl;
         }
-
-        matrixHadamard(&temp1, gradient, gradient);
+        matrixHadamard(tempdZdA, gradient, gradient);
     }
 
     /*
@@ -179,15 +255,16 @@ void Layer::calculateGradients()
     // weights
     if (previousLayer != nullptr) // hidden layer
     {
-        matrixTranspose(previousLayer->getActivation(), &temp1);
+        matrixTranspose(previousLayer->getActivation(), tempPrActivationT);
     }
     else // input layer
     {
-        assert(input != nullptr);
-        matrixTranspose(input, &temp1);
+        matrixTranspose(input, tempPrActivationT);
     }
-    matrixMultiply(gradient, &temp1, &temp2);
-    matrixScalarMultiply(&temp2, static_cast<float>(gradient->cols), gradweights);
+
+    matrixMultiply(gradient, tempPrActivationT, gradweights);
+    float scalar = 1.0f / static_cast<float>(gradient->cols);
+    matrixScalarMultiply(gradweights, scalar, gradweights);
 }
 
 void Layer::step(float learningRate)
