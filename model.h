@@ -11,15 +11,15 @@ class Model
 public:
     Model();
     void addLayer(Layer *layer);
-    void prepData(Matrix *data, Matrix *trainData, Matrix *trainLabels, Matrix *testData, Matrix *testLabels, float splitRatio);
-
     void initTraining(int batchSize);
+
     void forward(Matrix *data, Matrix *groundtruth, float *loss);
     void predict(Matrix *data, Matrix *prediction);
     void calculateGradients(Matrix *input, Matrix *groundtruth);
     void step(float learningRate);
 
     void print();
+    void printProgress(int epoch, int batch, int batchesPerEpoch, float loss);
     void information();
 
 private:

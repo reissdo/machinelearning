@@ -3,6 +3,39 @@
 #include "model.h"
 #include <iostream>
 
+void prepData(Matrix *inputTrain, Matrix *inputTest, Matrix **trainData, Matrix **labelsTrain, Matrix **testData, Matrix **labelsTest)
+{
+    /*
+        get labels
+    */
+
+    Matrix tempTrainLabels(inputTrain->rows, 1);
+    Matrix tempTestLabels(inputTest->rows, 1);
+
+    inputTrain->getCols(0, 1, &tempTrainLabels);
+    inputTest->getCols(0, 1, &tempTestLabels);
+
+    *labelsTrain = new Matrix(1, inputTrain->rows);
+    matrixTranspose(&tempTrainLabels, *labelsTrain);
+    *labelsTest = new Matrix(1, inputTest->rows);
+    matrixTranspose(&tempTestLabels, *labelsTest);
+
+    /*
+        get data
+    */
+
+    Matrix tempTrainData(inputTrain->rows, inputTrain->cols - 1);
+    Matrix tempTestData(inputTest->rows, inputTest->cols - 1);
+
+    inputTrain->getCols(1, inputTrain->cols, &tempTrainData);
+    inputTest->getCols(1, inputTest->cols, &tempTestData);
+
+    *trainData = new Matrix(inputTrain->cols - 1, inputTrain->rows);
+    matrixTranspose(&tempTrainData, *trainData);
+    *testData = new Matrix(inputTest->cols - 1, inputTest->rows);
+    matrixTranspose(&tempTestData, *testData);
+}
+
 int main(void)
 {
     /*
@@ -11,7 +44,7 @@ int main(void)
 
     const int mnistDataSize = 784;
     const int mnistClasses = 10;
-    const int epochs = 10;
+    const int epochs = 3;
     const int batchSize = 100;
     const float learningRate = 0.1f;
 
@@ -19,35 +52,30 @@ int main(void)
         data preparation
     */
 
-    Matrix *data = matrixLoad("../mnist_test.txt");
-    if (data == nullptr)
+    Matrix *train = matrixLoad("../mnist_train.txt");
+    Matrix *test = matrixLoad("../mnist_test.txt");
+
+    Matrix *trainData = nullptr;
+    Matrix *labelsTrain = nullptr;
+    Matrix *testData = nullptr;
+    Matrix *labelsTest = nullptr;
+
+    if (train == nullptr || test == nullptr)
     {
         std::cerr << "Error: could not load mnist dataset" << std::endl;
         return 1;
     }
 
-    // TODO: in model.prepData(Matrix *data, float splitRatio, Matrix *trainingdata, Matrix *testData) auslagern
-    Matrix *labelsT = new Matrix(data->rows, 1);
-    Matrix *inputsT = new Matrix(data->rows, 784);
+    prepData(train, test, &trainData, &labelsTrain, &testData, &labelsTest);
 
-    Matrix *labels = new Matrix(1, data->rows);
-    Matrix *inputs = new Matrix(784, data->rows);
+    Matrix *OHlabelsTrain = new Matrix(mnistClasses, labelsTrain->cols);
+    Matrix *OHlabelsTest = new Matrix(mnistClasses, labelsTest->cols);
 
-    data->getCols(0, 1, labelsT);
-    data->getCols(1, data->cols, inputsT);
-    delete data;
+    matrixOneHot(labelsTrain, OHlabelsTrain, mnistClasses);
+    matrixOneHot(labelsTest, OHlabelsTest, mnistClasses);
 
-    matrixTranspose(labelsT, labels);
-    matrixTranspose(inputsT, inputs);
-    delete labelsT;
-    delete inputsT;
-
-    Matrix *oneHotLabels = new Matrix(mnistClasses, labels->cols, 0.0f);
-    matrixOneHot(labels, oneHotLabels, mnistClasses);
-
-    labels->shape();
-    oneHotLabels->shape();
-    inputs->shape();
+    std::cout << "Train data: " << trainData->shape() << " " << OHlabelsTrain->shape() << std::endl;
+    std::cout << "Test data: " << testData->shape() << " " << OHlabelsTest->shape() << std::endl;
 
     /*
         model creation
@@ -55,10 +83,9 @@ int main(void)
 
     Model model;
 
-    model.addLayer(new Layer(mnistDataSize, 100, ActivationType::SIGMOID));
-    model.addLayer(new Layer(100, 50, ActivationType::SIGMOID));
-    model.addLayer(new Layer(50, 20, ActivationType::SIGMOID));
-    model.addLayer(new Layer(20, mnistClasses, ActivationType::SOFTMAX));
+    model.addLayer(new Layer(mnistDataSize, 64, ActivationType::SIGMOID));
+    model.addLayer(new Layer(64, 32, ActivationType::SIGMOID));
+    model.addLayer(new Layer(32, mnistClasses, ActivationType::SOFTMAX));
 
     model.information();
     model.initTraining(batchSize);
@@ -67,47 +94,52 @@ int main(void)
         training
     */
 
-    const int numBatches = inputs->cols / batchSize;
-    std::cout << "number of batches per epoch: " << numBatches << std::endl;
+    const int numBatches = trainData->cols / batchSize;
 
     for (int e = 0; e < epochs; e++)
     {
         for (int b = 0; b < numBatches; b++)
         {
-            Matrix batch(inputs->rows, batchSize);
-            Matrix batchGroundTruthOneHot(mnistClasses, batchSize);
-            Matrix batchGroundTruth(1, batchSize);
             float loss;
+            Matrix batch(trainData->rows, batchSize);
+            Matrix batchGroundTruthOneHot(mnistClasses, batchSize);
 
-            inputs->getCols(b * batchSize, b * batchSize + batchSize, &batch);
-            oneHotLabels->getCols(b * batchSize, b * batchSize + batchSize, &batchGroundTruthOneHot);
-            labels->getCols(b * batchSize, b * batchSize + batchSize, &batchGroundTruth);
-
-            // TODO: add prediction on test data
-            // TODO: nur one hot labels übergeben
+            trainData->getCols(b * batchSize, b * batchSize + batchSize, &batch);
+            OHlabelsTrain->getCols(b * batchSize, b * batchSize + batchSize, &batchGroundTruthOneHot);
 
             model.forward(&batch, &batchGroundTruthOneHot, &loss);
-            std::cout << "\repoch: " << e << " loss: " << loss << std::flush;
+            model.printProgress(e, b, numBatches, loss);
 
-            model.calculateGradients(&batch, &batchGroundTruth);
+            model.calculateGradients(&batch, &batchGroundTruthOneHot);
             model.step(learningRate);
         }
         std::cout << std::endl;
     }
 
-    int offset = 10;
+    /*
+        calculate accuracy on test data
+    */
+
+    /*
+        display and predict a few numbers
+    */
+
     for (int k = 0; k < 10; k++)
     {
         Matrix number(mnistDataSize, 1);
-        inputs->getCols(k + offset, k + offset + 1, &number);
+        testData->getCols(k, k + 1, &number);
         matrixPrintMNIST(&number);
 
         Matrix prediction(mnistClasses, 1);
+        Matrix predT(1, mnistClasses);
         model.predict(&number, &prediction);
+        matrixTranspose(&prediction, &predT);
+        predT.print();
 
         Matrix argmaxNumber(2, 1);
         matrixArgMax(&prediction, &argmaxNumber);
-        std::cout << "predicted number: " << argmaxNumber.data[0] << std::endl;
+        std::cout << "predicted number: " << argmaxNumber.data[0] << "\n"
+                  << std::endl;
     }
 
     return 0;

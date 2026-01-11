@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <vector>
+#include <string>
 
 typedef uint32_t uint;
 
@@ -20,7 +21,7 @@ struct Matrix
     void getRows(uint startIndex, uint endIndex, Matrix *out);
 
     void print();
-    void shape();
+    std::string shape();
 };
 
 /*

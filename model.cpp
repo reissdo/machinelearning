@@ -1,5 +1,6 @@
 #include "model.h"
 #include <iostream>
+#include <iomanip>
 
 Model::Model()
 {
@@ -119,13 +120,49 @@ void Model::print()
     }
 }
 
+void Model::printProgress(int epoch, int batch, int batchesPerEpoch, float loss)
+{
+    if (batch % 2 != 0 && batch < batchesPerEpoch - 1)
+        return;
+
+    float progress = static_cast<float>(batch + 1) / static_cast<float>(batchesPerEpoch);
+    int barWidth = 20;
+    int pos = static_cast<int>(barWidth * progress);
+
+    const std::string RESET = "\033[0m";
+    const std::string BOLD = "\033[1m";
+
+    std::cout << "\r" << BOLD << "Epoch [" << epoch << "] " << RESET;
+
+    for (int i = 0; i < barWidth; ++i)
+    {
+        if (i <= pos)
+            std::cout << "\u2588";
+        else
+            std::cout << "\u2592";
+    }
+    std::cout << " ";
+
+    std::cout << std::fixed << std::setprecision(1) << std::setw(5) << (progress * 100.0) << "% "
+              << "| Loss: " << std::setprecision(4) << loss << RESET
+              << "          " << std::flush;
+
+    if (batch + 1 == batchesPerEpoch)
+    {
+        std::cout << std::endl;
+        std::cout << std::defaultfloat << std::setprecision(6);
+    }
+}
+
 void Model::information()
 {
+    std::cout << "\n";
     for (int i = 0; i < layers.size(); i++)
     {
         std::cout << "Layer: " << i << " >> ";
         layers[i]->information();
     }
+    std::cout << std::endl;
 }
 
 float Model::calculateCost(Matrix *layerOutput, Matrix *groundtruth)
@@ -146,8 +183,4 @@ void Model::initTraining(int batchSize)
     {
         layers[i]->allocateMatricesTraining(batchSize);
     }
-}
-
-void Model::prepData(Matrix *data, Matrix *trainData, Matrix *trainLabels, Matrix *testData, Matrix *testLabels, float splitRatio)
-{
 }

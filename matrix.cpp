@@ -21,7 +21,8 @@ Matrix::Matrix(uint rows_, uint cols_, std::vector<float> data_) : rows(rows_), 
 void Matrix::getCols(uint startIndex, uint endIndex, Matrix *out)
 {
     assert(startIndex >= 0 && endIndex <= cols && startIndex < endIndex);
-    assert(out->rows == rows && out->cols == (endIndex - startIndex));
+    assert(out->rows == rows);
+    assert(out->cols == (endIndex - startIndex));
 
     for (uint i = 0; i < out->rows; i++)
     {
@@ -74,9 +75,9 @@ void Matrix::print()
     std::cout << "]" << std::endl;
 }
 
-void Matrix::shape()
+std::string Matrix::shape()
 {
-    std::cout << "[" << rows << "," << cols << "]" << std::endl;
+    return std::string() + "[" + std::to_string(rows) + "," + std::to_string(cols) + "]";
 }
 
 void matrixAdd(Matrix *in1, Matrix *in2, Matrix *out)
@@ -421,26 +422,22 @@ void matrixReLuDerivative(Matrix *wIn, Matrix *gradient)
     }
 }
 
-void matrixSoftMaxCCECombinedDerivative(Matrix *activation, Matrix *groundtruthIndex, Matrix *gradient)
+void matrixSoftMaxCCECombinedDerivative(Matrix *activation, Matrix *groundtruth, Matrix *gradient)
 {
-    // groundtruth is NOT one hot encoded !!!
     // CCE(z_i) = ln(exp(z_1) + ... + exp(z_I)) - z_k; k is the index for the true class
     // dCCE/dz_k = softmax(z_k) - 1
     // dCCE/dz_j = softmax(z_j)
     // softmax(z) -> activation
+    // groundtruth is one hot encoded
 
     assert(activation->cols == gradient->cols && activation->rows == gradient->rows);
-    assert(groundtruthIndex->rows == 1);
+    assert(groundtruth->rows == activation->rows);
 
     for (uint j = 0; j < gradient->cols; j++)
     {
         for (uint i = 0; i < gradient->rows; i++)
         {
-            gradient->data[i * gradient->cols + j] = activation->data[i * activation->cols + j];
-            if (i == groundtruthIndex->data[j])
-            {
-                gradient->data[i * gradient->cols + j] -= 1;
-            }
+            gradient->data[i * gradient->cols + j] = activation->data[i * activation->cols + j] - groundtruth->data[i * groundtruth->cols + j];
         }
     }
 }

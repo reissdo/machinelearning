@@ -3,6 +3,7 @@
 #include <cassert>
 #include <iostream>
 #include <string>
+#include <cmath>
 
 Layer::Layer(uint inputSize_, uint outputSize_, ActivationType activationType_) : activationType(activationType_),
                                                                                   weights(outputSize_, inputSize_),
@@ -22,26 +23,35 @@ void Layer::setSubsequentLayer(Layer *layer_)
 
 void Layer::initWeights()
 {
-    // TODO: add xavier/glorot weight init
     std::random_device dev;
     std::mt19937 rng(dev());
-    std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+
+    float stdev = std::sqrt(1.0f / static_cast<float>(weights.cols));
+    std::normal_distribution<float> dist(0.0f, stdev);
 
     for (uint i = 0; i < weights.rows; i++)
     {
         for (uint j = 0; j < weights.cols; j++)
         {
-            weights.data[i * weights.cols + j] = dist(rng);
+            float random;
+            do
+            {
+                random = dist(rng);
+            } while (std::abs(random) > 2.0f * stdev);
+
+            weights.data[i * weights.cols + j] = random;
         }
     }
 
     for (uint i = 0; i < bias.rows; i++)
     {
-        float value = dist(rng);
-        for (uint j = 0; j < bias.cols; j++)
+        float random;
+        do
         {
-            bias.data[i * bias.cols + j] = value;
-        }
+            random = dist(rng);
+        } while (std::abs(random) > 2.0f * stdev);
+
+        bias.data[i] = random;
     }
 }
 
@@ -197,8 +207,6 @@ void Layer::calculateGradients()
     /*
         calculate gradient dL/dz
     */
-
-    Matrix temp1(gradient->rows, gradient->cols);
 
     // layer is output layer
     if (subsequentLayer == nullptr)
