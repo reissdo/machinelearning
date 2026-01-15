@@ -303,25 +303,22 @@ void matrixSum(Matrix *in, float *out)
 void matrixArgMax(Matrix *in, Matrix *argmax)
 {
     // in->data contains only positive entries
-    assert(argmax->rows == 2 && argmax->cols == in->cols);
+    assert(argmax->rows == 1 && argmax->cols == in->cols);
 
     for (uint j = 0; j < in->cols; j++)
     {
         float maxVal = 0.0f;
-        uint maxIndexI = 0;
-        uint maxIndexJ = 0;
+        uint maxIndex = 0;
         for (uint i = 0; i < in->rows; i++)
         {
             if (in->data[i * in->cols + j] > maxVal)
             {
                 maxVal = in->data[i * in->cols + j];
-                maxIndexI = i;
-                maxIndexJ = j;
+                maxIndex = i;
             }
         }
 
-        argmax->data[j] = maxIndexI;
-        argmax->data[argmax->cols + j] = maxIndexJ;
+        argmax->data[j] = maxIndex;
     }
 }
 
@@ -457,4 +454,23 @@ void matrixRowMean(Matrix *in, Matrix *out)
 
         out->data[i] = sum / cols;
     }
+}
+
+void matrixAccuracy(Matrix *in, Matrix *groundtruth, float *accuracy)
+{
+    // groundtruth is not one hot encoded
+    assert(in->cols == groundtruth->cols);
+    assert(in->rows == 1 && groundtruth->rows == 1);
+
+    *accuracy = 0.0f;
+
+    for (uint i = 0; i < groundtruth->cols; i++)
+    {
+        if (in->data[i] == groundtruth->data[i])
+        {
+            *accuracy += 1.0f; 
+        }
+    }
+
+    *accuracy /= static_cast<float>(groundtruth->cols);
 }

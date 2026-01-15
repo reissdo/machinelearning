@@ -22,6 +22,9 @@ public:
     void printProgress(int epoch, int batch, int batchesPerEpoch, float loss);
     void information();
 
+    // TODO: add model export to .txt
+    // TODO: add model inport from .txt
+
 private:
     std::vector<Layer *> layers;
 

@@ -2,6 +2,7 @@
 #include "layer.h"
 #include "model.h"
 #include <iostream>
+#include <iomanip>
 
 void prepData(Matrix *inputTrain, Matrix *inputTest, Matrix **trainData, Matrix **labelsTrain, Matrix **testData, Matrix **labelsTest)
 {
@@ -90,6 +91,16 @@ int main(void)
     model.information();
     model.initTraining(batchSize);
 
+    float accuracy;
+    Matrix pred(mnistClasses, testData->cols);
+    Matrix indexpred(1, testData->cols);
+
+    model.predict(testData, &pred);
+    matrixArgMax(&pred, &indexpred);
+    matrixAccuracy(&indexpred, labelsTest, &accuracy);
+    std::cout << "accuracy before training: " << accuracy << "\n"
+              << std::endl;
+
     /*
         training
     */
@@ -98,6 +109,8 @@ int main(void)
 
     for (int e = 0; e < epochs; e++)
     {
+        float lossSum = 0.0f;
+
         for (int b = 0; b < numBatches; b++)
         {
             float loss;
@@ -108,7 +121,8 @@ int main(void)
             OHlabelsTrain->getCols(b * batchSize, b * batchSize + batchSize, &batchGroundTruthOneHot);
 
             model.forward(&batch, &batchGroundTruthOneHot, &loss);
-            model.printProgress(e, b, numBatches, loss);
+            lossSum += loss;
+            model.printProgress(e, b, numBatches, lossSum / static_cast<float>(b));
 
             model.calculateGradients(&batch, &batchGroundTruthOneHot);
             model.step(learningRate);
@@ -119,6 +133,11 @@ int main(void)
     /*
         calculate accuracy on test data
     */
+
+    model.predict(testData, &pred);
+    matrixArgMax(&pred, &indexpred);
+    matrixAccuracy(&indexpred, labelsTest, &accuracy);
+    std::cout << "accuracy after training: " << accuracy << std::endl;
 
     /*
         display and predict a few numbers
@@ -136,9 +155,9 @@ int main(void)
         matrixTranspose(&prediction, &predT);
         predT.print();
 
-        Matrix argmaxNumber(2, 1);
+        Matrix argmaxNumber(1, 1);
         matrixArgMax(&prediction, &argmaxNumber);
-        std::cout << "predicted number: " << argmaxNumber.data[0] << "\n"
+        std::cout << std::setprecision(3) << "predicted number: " << argmaxNumber.data[0] << "\n"
                   << std::endl;
     }
 
