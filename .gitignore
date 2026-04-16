@@ -2,6 +2,8 @@
 mnist_train.txt
 mnist_test.txt
 
+./venv
+
 # Prerequisites
 *.d
 
