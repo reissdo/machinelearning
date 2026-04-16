@@ -9,9 +9,9 @@ typedef uint32_t uint;
 
 struct Matrix
 {
-    uint cols;
-    uint rows;
-    std::vector<float> data; // data[row * cols + col] = data[i * cols + j] = data[i][j]
+    uint cols = 0;
+    uint rows = 0;
+    std::vector<float> data = {}; // data[row * cols + col] = data[i * cols + j] = data[i][j]
 
     Matrix();
     Matrix(uint rows_, uint cols_, float value_ = 0.0f);

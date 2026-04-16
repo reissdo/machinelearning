@@ -6,10 +6,6 @@
 #include <sstream>
 #include <string>
 
-Matrix::Matrix() : rows(0), cols(0), data()
-{
-}
-
 Matrix::Matrix(uint rows_, uint cols_, float value_) : rows(rows_), cols(cols_), data(rows_ * cols_, value_)
 {
 }
