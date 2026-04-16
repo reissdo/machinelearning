@@ -54,7 +54,7 @@ void matrixLogLoss(Matrix *in, Matrix *groundtruth, float *loss);
 /*
     cost functions
 */
-// void matrixAccuracy();
+void matrixAccuracy(Matrix *in, Matrix *groundtruth, float *accuracy);
 
 /*
     machine learning specific matrix functions
